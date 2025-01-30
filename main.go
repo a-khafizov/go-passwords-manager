@@ -3,20 +3,23 @@ package main
 import (
 	"app/password/account"
 	"fmt"
+
+	"github.com/fatih/color"
 )
 
 func main() {
+	vault := account.NewVault()
 Menu:
 	for {
 		fmt.Println("__Менеджер паролей__")
 		variant := getMenu()
 		switch variant {
 		case 1:
-			createAccount()
+			createAccount(vault)
 		case 2:
-			findAccount()
+			findAccount(vault)
 		case 3:
-			deleteAccount()
+			deleteAccount(vault)
 		default:
 			break Menu
 		}
@@ -34,26 +37,38 @@ func getMenu() int {
 	return variant
 }
 
-func createAccount() {
+func createAccount(vault *account.Vault) {
 	login := promtData("Введите логин:")
 	password := promtData("Введите пароль:")
 	url := promtData("Введите url:")
 
 	myAccount, err := account.NewAccount(login, password, url)
 	if err != nil {
-		fmt.Println("Неверный формат URL или LOGIN")
+		color.Red("Неверный формат URL или LOGIN")
 		return
 	}
-	vault := account.NewVault()
 	vault.AddAccount(*myAccount)
 }
 
-func findAccount() {
-
+func findAccount(vault *account.Vault) {
+	url := promtData("Введите url для поиска: ")
+	accounts := vault.FindAccountsByUrl(url)
+	if len(accounts) == 0 {
+		color.Red("Аккаунтов не найдено")
+	}
+	for _, account := range accounts {
+		account.Output()
+	}
 }
 
-func deleteAccount() {
-
+func deleteAccount(vault *account.Vault) {
+	url := promtData("Введите url для удаления: ")
+	isDeleted := vault.DeleteAccountByUrl(url)
+	if isDeleted {
+		color.Green("Удаленно")
+	} else {
+		color.Red("Не найдено")
+	}
 }
 
 func promtData(promt string) string {
