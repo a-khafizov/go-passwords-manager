@@ -13,23 +13,38 @@ type Vault struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func NewVault() *Vault {
-	file, err := files.ReadFile("data.json")
+type VaultWithDb struct {
+	Vault
+	db files.JsonDb
+}
+
+func NewVault(db *files.JsonDb) *VaultWithDb {
+	file, err := db.Read()
 	if err != nil {
-		return &Vault{
-			Accounts:  []Account{},
-			UpdatedAt: time.Now(),
+		return &VaultWithDb{
+			Vault: Vault{
+				Accounts:  []Account{},
+				UpdatedAt: time.Now(),
+			},
+			db: *db,
 		}
 	}
-	var vault Vault
+	var vault VaultWithDb
 	err = json.Unmarshal(file, &vault)
 	if err != nil {
 		fmt.Println(err.Error())
+		return &VaultWithDb{
+			Vault: Vault{
+				Accounts:  []Account{},
+				UpdatedAt: time.Now(),
+			},
+			db: *db,
+		}
 	}
 	return &vault
 }
 
-func (vault *Vault) AddAccount(acc Account) {
+func (vault *VaultWithDb) AddAccount(acc Account) {
 	vault.Accounts = append(vault.Accounts, acc)
 	vault.save()
 }
@@ -42,7 +57,7 @@ func (vault *Vault) ToBytes() ([]byte, error) {
 	return file, nil
 }
 
-func (vault *Vault) FindAccountsByUrl(url string) []Account {
+func (vault *VaultWithDb) FindAccountsByUrl(url string) []Account {
 	var accounts []Account
 	for _, account := range vault.Accounts {
 		isMatched := strings.Contains(account.Url, url)
@@ -53,7 +68,7 @@ func (vault *Vault) FindAccountsByUrl(url string) []Account {
 	return accounts
 }
 
-func (vault *Vault) DeleteAccountByUrl(url string) bool {
+func (vault *VaultWithDb) DeleteAccountByUrl(url string) bool {
 	var accounts []Account
 	isDeleted := false
 	for _, account := range vault.Accounts {
@@ -69,11 +84,11 @@ func (vault *Vault) DeleteAccountByUrl(url string) bool {
 	return isDeleted
 }
 
-func (vault *Vault) save() {
+func (vault *VaultWithDb) save() {
 	vault.UpdatedAt = time.Now()
-	data, err := vault.ToBytes()
+	data, err := vault.Vault.ToBytes()
 	if err != nil {
 		fmt.Println("Не удалось преобразовать файл json")
 	}
-	files.WriteFile(data, "data.json")
+	vault.db.Write(data)
 }
