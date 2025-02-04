@@ -1,13 +1,23 @@
 package account
 
 import (
-	"app/password/files"
+	"app/password/output"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 )
 
+type ByteReader interface {
+	Read() ([]byte, error)
+}
+
+type ByteWriter interface {
+	Write([]byte)
+}
+type Db interface {
+	ByteReader
+	ByteWriter
+}
 type Vault struct {
 	Accounts  []Account `json:"accounts"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -15,10 +25,10 @@ type Vault struct {
 
 type VaultWithDb struct {
 	Vault
-	db files.JsonDb
+	db Db
 }
 
-func NewVault(db *files.JsonDb) *VaultWithDb {
+func NewVault(db Db) *VaultWithDb {
 	file, err := db.Read()
 	if err != nil {
 		return &VaultWithDb{
@@ -26,22 +36,25 @@ func NewVault(db *files.JsonDb) *VaultWithDb {
 				Accounts:  []Account{},
 				UpdatedAt: time.Now(),
 			},
-			db: *db,
+			db: db,
 		}
 	}
-	var vault VaultWithDb
+	var vault Vault
 	err = json.Unmarshal(file, &vault)
 	if err != nil {
-		fmt.Println(err.Error())
+		output.PrintError(err.Error())
 		return &VaultWithDb{
 			Vault: Vault{
 				Accounts:  []Account{},
 				UpdatedAt: time.Now(),
 			},
-			db: *db,
+			db: db,
 		}
 	}
-	return &vault
+	return &VaultWithDb{
+		Vault: vault,
+		db:    db,
+	}
 }
 
 func (vault *VaultWithDb) AddAccount(acc Account) {
@@ -88,7 +101,7 @@ func (vault *VaultWithDb) save() {
 	vault.UpdatedAt = time.Now()
 	data, err := vault.Vault.ToBytes()
 	if err != nil {
-		fmt.Println("Не удалось преобразовать файл json")
+		output.PrintError("Не удалось преобразовать файл json")
 	}
 	vault.db.Write(data)
 }

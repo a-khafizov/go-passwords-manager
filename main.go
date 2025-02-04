@@ -3,6 +3,7 @@ package main
 import (
 	"app/password/account"
 	"app/password/files"
+	"app/password/output"
 	"fmt"
 
 	"github.com/fatih/color"
@@ -13,13 +14,19 @@ func main() {
 Menu:
 	for {
 		fmt.Println("__Менеджер паролей__")
-		variant := getMenu()
+		variant := promtData([]string{
+			"1. Создать аккаунт",
+			"2. Найти аккаунт",
+			"3. Удалить аккаунт",
+			"4. Выход",
+			"Выберите вариант: ",
+		})
 		switch variant {
-		case 1:
+		case "1":
 			createAccount(vault)
-		case 2:
+		case "2":
 			findAccount(vault)
-		case 3:
+		case "3":
 			deleteAccount(vault)
 		default:
 			break Menu
@@ -27,32 +34,21 @@ Menu:
 	}
 }
 
-func getMenu() int {
-	var variant int
-	fmt.Println("Выберите вариант: ")
-	fmt.Println("1. Создать аккаунт")
-	fmt.Println("2. Найти аккаунт")
-	fmt.Println("3. Удалить аккаунт")
-	fmt.Println("4. Выход")
-	fmt.Scanln(&variant)
-	return variant
-}
-
 func createAccount(vault *account.VaultWithDb) {
-	login := promtData("Введите логин:")
-	password := promtData("Введите пароль:")
-	url := promtData("Введите url:")
+	login := promtData([]string{"Введите логин:"})
+	password := promtData([]string{"Введите пароль:"})
+	url := promtData([]string{"Введите url:"})
 
 	myAccount, err := account.NewAccount(login, password, url)
 	if err != nil {
-		color.Red("Неверный формат URL или LOGIN")
+		output.PrintError("Неверный формат URL или LOGIN")
 		return
 	}
 	vault.AddAccount(*myAccount)
 }
 
 func findAccount(vault *account.VaultWithDb) {
-	url := promtData("Введите url для поиска: ")
+	url := promtData([]string{"Введите url для поиска: "})
 	accounts := vault.FindAccountsByUrl(url)
 	if len(accounts) == 0 {
 		color.Red("Аккаунтов не найдено")
@@ -63,17 +59,23 @@ func findAccount(vault *account.VaultWithDb) {
 }
 
 func deleteAccount(vault *account.VaultWithDb) {
-	url := promtData("Введите url для удаления: ")
+	url := promtData([]string{"Введите url для удаления: "})
 	isDeleted := vault.DeleteAccountByUrl(url)
 	if isDeleted {
 		color.Green("Удаленно")
 	} else {
-		color.Red("Не найдено")
+		output.PrintError("Не найдено")
 	}
 }
 
-func promtData(promt string) string {
-	fmt.Print(promt + " ")
+func promtData[T any](promt []T) string {
+	for i, line := range promt {
+		if i == len(promt)-1 {
+			fmt.Printf("%v: ", line)
+		} else {
+			fmt.Println(line)
+		}
+	}
 	var res string
 	fmt.Scanln(&res)
 	return res
