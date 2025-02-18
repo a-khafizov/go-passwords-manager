@@ -1,8 +1,10 @@
 package account
 
 import (
+	"app/password/encrypter"
 	"app/password/output"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -25,10 +27,11 @@ type Vault struct {
 
 type VaultWithDb struct {
 	Vault
-	db Db
+	db  Db
+	enc encrypter.Encrypter
 }
 
-func NewVault(db Db) *VaultWithDb {
+func NewVault(db Db, enc encrypter.Encrypter) *VaultWithDb {
 	file, err := db.Read()
 	if err != nil {
 		return &VaultWithDb{
@@ -36,24 +39,29 @@ func NewVault(db Db) *VaultWithDb {
 				Accounts:  []Account{},
 				UpdatedAt: time.Now(),
 			},
-			db: db,
+			db:  db,
+			enc: enc,
 		}
 	}
+	data := enc.Decrypt(file)
 	var vault Vault
-	err = json.Unmarshal(file, &vault)
+	err = json.Unmarshal(data, &vault)
+	fmt.Printf("Найдено %d аккаунтов \n", len(vault.Accounts))
 	if err != nil {
-		output.PrintError(err.Error())
+		output.PrintError("Не удалось разобрать файл data.vault")
 		return &VaultWithDb{
 			Vault: Vault{
 				Accounts:  []Account{},
 				UpdatedAt: time.Now(),
 			},
-			db: db,
+			db:  db,
+			enc: enc,
 		}
 	}
 	return &VaultWithDb{
 		Vault: vault,
 		db:    db,
+		enc:   enc,
 	}
 }
 
@@ -111,8 +119,9 @@ func (vault *VaultWithDb) DeleteAccountByUrl(url string) bool {
 func (vault *VaultWithDb) save() {
 	vault.UpdatedAt = time.Now()
 	data, err := vault.Vault.ToBytes()
+	encData := vault.enc.Encrypt(data)
 	if err != nil {
 		output.PrintError("Не удалось преобразовать файл json")
 	}
-	vault.db.Write(data)
+	vault.db.Write(encData)
 }

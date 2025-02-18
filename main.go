@@ -2,12 +2,14 @@ package main
 
 import (
 	"app/password/account"
+	"app/password/encrypter"
 	"app/password/files"
 	"app/password/output"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/joho/godotenv"
 )
 
 var menu = map[string]func(*account.VaultWithDb){
@@ -18,40 +20,35 @@ var menu = map[string]func(*account.VaultWithDb){
 }
 
 func main() {
-	vault := account.NewVault(files.NewJsonDb("data.json"))
+	fmt.Println("__Менеджер паролей__")
+	err := godotenv.Load()
+	if err != nil {
+		output.PrintError("Ошибка чтения env")
+	}
+
+	vault := account.NewVault(files.NewJsonDb("data.vault"), *encrypter.NewEncrypter())
 Menu:
 	for {
-		fmt.Println("__Менеджер паролей__")
 		variant := promtData(
 			"1. Создать аккаунт",
 			"2. Найти аккаунт по url",
 			"3. Найти аккаунт по login",
 			"4. Удалить аккаунт",
 			"5. Выход",
-			"Выберите вариант: ",
+			"Выберите вариант",
 		)
 		menuFunc := menu[variant]
 		if menuFunc == nil {
 			break Menu
 		}
 		menuFunc(vault)
-		// switch variant {
-		// case "1":
-		// 	createAccount(vault)
-		// case "2":
-		// 	findAccount(vault)
-		// case "3":
-		// 	deleteAccount(vault)
-		// default:
-		// 	break Menu
-		// }
 	}
 }
 
 func createAccount(vault *account.VaultWithDb) {
-	login := promtData("Введите логин:")
-	password := promtData("Введите пароль:")
-	url := promtData("Введите url:")
+	login := promtData("Введите логин")
+	password := promtData("Введите пароль")
+	url := promtData("Введите url")
 
 	myAccount, err := account.NewAccount(login, password, url)
 	if err != nil {
